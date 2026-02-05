@@ -3277,18 +3277,70 @@
         async function executeSave(mode) {
             hideSaveOptions();
 
+            // Verificar si hay datos manuales pendientes (Vista Previa activa)
+            const manualText = document.getElementById('manualInput').value.trim();
+            let pendingDataProcessed = false;
+
+            if (manualText && mode === 'NEW_WEEK') {
+                if (confirm('📝 Hay datos manuales en la vista previa. ¿Quieres usarlos para cerrar la semana?\n(Si dices Cancelar, se ignorarán y se usará solo lo que ya estaba guardado)')) {
+                    // Procesar datos manuales rápidamente
+                    const lines = manualText.split('\n');
+                    const updates = {};
+                    let validLines = 0;
+
+                    lines.forEach(line => {
+                        const parts = line.split(',');
+                        if (parts.length === 2) {
+                            const name = parts[0].trim();
+                            const val = parseInt(parts[1].trim());
+                            if (name && !isNaN(val) && val >= 0) {
+                                updates[name] = val;
+                                validLines++;
+                            }
+                        }
+                    });
+
+                    if (validLines > 0) {
+                        // Aplicar actualizaciones a `players`
+                        updatePlayers(updates); // Reutilizamos la función existente que ya maneja la lógica correcta
+                        pendingDataProcessed = true;
+
+                        // Limpiar entrada manual y preview
+                        document.getElementById('manualInput').value = '';
+                        previewData = null;
+                        renderTable(); // Refrescar para asegurar que la tabla base esté al día antes del cierre
+                    }
+                }
+            }
+
             if (mode === 'NEW_WEEK') {
-                if (!confirm('⚠️ ¿Estás seguro de CERRAR la semana actual? Esto calculará los acumulados finales, reiniciará los contadores a cero y guardará todo en Firebase. Esta acción no se puede deshacer fácilmente.')) {
+                let msg = '⚠️ ¿Estás seguro de CERRAR la semana actual?';
+                if (pendingDataProcessed) msg += '\n(Se incluirán los datos manuales que acabas de confirmar)';
+                msg += '\n\nEsto calculará los acumulados finales, reiniciará los contadores a cero y guardará todo en Firebase.';
+
+                if (!confirm(msg)) {
                     return;
                 }
                 await startNewWeek();
                 await saveData(); // Guardar los cambios post-cierre
+
+                // Asegurar que la vista previa visual se limpie
+                clearPreview();
+                hidemanualWrapper(); // Función helper si existe, o borramos manualmente
+                document.getElementById('manualSection').classList.remove('active'); // Ocultar panel manual si estaba abierto
+
                 showStatus('✅ ¡Semana cerrada y nueva semana iniciada correctamente!', 'success');
             } else {
                 // UPDATE
                 await saveData();
                 showStatus('✅ Datos guardados en Firebase correctamente (Semana actual continúa).', 'success');
             }
+        }
+
+        function hidemanualWrapper() {
+            document.getElementById('manualInput').value = '';
+            previewData = null;
+            renderTable();
         }
 
         // Reemplaza a la antigua función manualSave directa
