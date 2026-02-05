@@ -2682,7 +2682,8 @@
                 } else {
                     const deficit = weeklyGoal - weeklyDonation;
                     const availableExcess = Math.max(0, player.accumulatedExcess || 0);
-                    player.accumulatedExcess = availableExcess - amountToDeduct;
+                    const deduction = Math.min(deficit, availableExcess);
+                    player.accumulatedExcess = availableExcess - deduction;
                 }
                 // RESET EFFECTIVE WEEKLY COUNTER
                 // Set 'previous' to 'current' so that next week's calculation (Current - Previous) starts at 0
